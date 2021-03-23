@@ -1,6 +1,6 @@
 # varroc
 Firmware for module connverter
-Arduino IDE +++++
+Arduino IDE
 
 # Pin mapping 
 GY-33 /-----/ Pro mini 5v 16m

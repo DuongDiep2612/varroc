@@ -30,9 +30,9 @@
 //////////// ADDRESS SAVE DATA IN EEPROM /////////////
 /*
   EEPROM Address
-  0 - Red value
-  1 - Green value
-  2 - Blue value
+  0 - Red value array
+  1 - Green value array
+  2 - Blue value array
 */
 
 #include "i2cmaster.h"

@@ -7,12 +7,16 @@
 **************************************************************************/
 /////////// PIN MAPPING ////////////
 /*
-  GY-33-----pro mini 5v 16m
-  VCC----VCC
-  CT----A5
-  DR----A4
-  GND--GND
-  S0---GND
+  GY-33 ----- Pro mini 5v 16m
+  VCC   ----- VCC
+  CT    ----- A5
+  DR    ----- A4
+  GND   ----- GND
+  S0    ----- GND
+  /////////////////////
+  Button ----- Pro mini
+  Select ----- 2
+  Signal ----- 3
 */
 
 //////////// COMMAND FUNCTION SEND TO COM PORT /////////////
@@ -59,8 +63,12 @@ unsigned char lastColor = 0, currentColor = 0;    // 1(Red) -- 2(Green) -- 0(Oth
 unsigned char redVal = 0, greenVal = 0, blueVal = 0;
 RGB rgb;
 uint16_t CT = 0, Lux = 0;
-byte color = 0, rgb_data[3] = {0};
-unsigned long time_now = 0;
+byte color = 0;
+unsigned char r_rgb_data[3] = {0};
+unsigned char g_rgb_data[3] = {0};
+unsigned char b_rgb_data[3] = {0};
+unsigned char rgb_data[3] = {0};
+volatile unsigned long time_now = 0;
 
 void setup() {
   Serial.begin(9600);
@@ -82,16 +90,28 @@ void setup() {
   pinMode(2, INPUT_PULLUP);
   pinMode(3, INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(2), selectMode, FALLING);
-  attachInterrupt(digitalPinToInterrupt(3), getSampleSignal, FALLING);
+  attachInterrupt(digitalPinToInterrupt(3), selectGetSample, FALLING);
   // getSampleSignal();
   // Read data R, G, B from EEPROM
-  readData(&redVal, &greenVal, &blueVal);
-  Serial.print("R_EEP:");
-  Serial.print(redVal);
-  Serial.print(" G_EEP:");
-  Serial.print(greenVal);
-  Serial.print(" B_EEP:");
-  Serial.println(blueVal);
+  readData(r_rgb_data, g_rgb_data, b_rgb_data);
+  // Serial.print("RR_EEP:");
+  // Serial.print(r_rgb_data[0]);
+  // Serial.print(" RG_EEP:");
+  // Serial.print(r_rgb_data[1]);
+  // Serial.print(" RB_EEP:");
+  // Serial.println(r_rgb_data[2]);
+  // Serial.print("GR_EEP:");
+  // Serial.print(g_rgb_data[0]);
+  // Serial.print(" GG_EEP:");
+  // Serial.print(g_rgb_data[1]);
+  // Serial.print(" GB_EEP:");
+  // Serial.println(g_rgb_data[2]);
+  // Serial.print("BR_EEP:");
+  // Serial.print(b_rgb_data[0]);
+  // Serial.print(" BG_EEP:");
+  // Serial.print(b_rgb_data[1]);
+  // Serial.print(" BB_EEP:");
+  // Serial.println(b_rgb_data[2]);
   // Init system
   ledIndicator(countMode);
   delay(10);
@@ -106,7 +126,7 @@ void timerIsr() {
     tick_count = TICK_COUNTS;                      // Reload
     if (check_ack == 0) {
       if (currentColor != lastColor) {
-        // Serial.print(check_ack);
+        // // Serial.print(check_ack);
         if (currentColor == 1) Serial.print("F");
         else if (currentColor == 2) Serial.print("T");
       }
@@ -135,10 +155,25 @@ void writeData(int address, byte value) {
 }
 
 // Function read R, G, B data to EEPROM
-void readData(byte *redVal, byte *greenVal, byte *blueVal) {
-  *redVal = EEPROM.read(0);
-  *greenVal = EEPROM.read(1);
-  *blueVal = EEPROM.read(2);
+void readData(byte *rs, byte *gs, byte *bs) {
+  *rs = EEPROM.read(0);
+  *(rs + 1) = EEPROM.read(1);
+  *(rs + 2) = EEPROM.read(2);
+  *gs = EEPROM.read(3);
+  *(gs + 1) = EEPROM.read(4);
+  *(gs + 2) = EEPROM.read(5);
+  *bs = EEPROM.read(6);
+  *(bs + 1) = EEPROM.read(7);
+  *(bs + 2) = EEPROM.read(8);
+}
+
+// Delay function
+void delay_ms(int ms) {
+  // delay 200ms
+  time_now = millis();
+  while (millis() < time_now + (unsigned long)ms) {
+    // Delay [period] ms
+  }
 }
 
 // Led status for each mode
@@ -177,34 +212,36 @@ void ledStatus(int numberMode) {
   switch (numberMode) {
     case 0: {     // Running
         for (int i = 0; i < 5; i++) {
+          // // Serial.print("1...");
           digitalWrite(4, LOW);
-          delay(200);
+          delay_ms(200);
           digitalWrite(4, HIGH);
-          delay(200);
+          delay_ms(200);
         }
       }; break;
     case 1: {     // Retrieve red signal sampling
         for (int i = 0; i < 5; i++) {
+          // // Serial.print("2...");
           digitalWrite(5, LOW);
-          delay(200);
+          delay_ms(200);
           digitalWrite(5, HIGH);
-          delay(200);
+          delay_ms(200);
         }
       }; break;
     case 2: {     // Retrieve green signal sampling
         for (int i = 0; i < 5; i++) {
           digitalWrite(6, LOW);
-          delay(200);
+          delay_ms(200);
           digitalWrite(6, HIGH);
-          delay(200);
+          delay_ms(200);
         }
       }; break;
     case 3: {     // Retrieve blue signal sampling
         for (int i = 0; i < 5; i++) {
           digitalWrite(7, LOW);
-          delay(200);
+          delay_ms(200);
           digitalWrite(7, HIGH);
-          delay(200);
+          delay_ms(200);
         }
       }; break;
     default: break;
@@ -213,8 +250,21 @@ void ledStatus(int numberMode) {
 
 // Function excute select mode
 void selectMode() {
-  countMode++;
-  ledIndicator(countMode);
+  if(enableGetSample == 0) {
+    countMode++;
+    if (countMode > 3) {
+      countMode = 0;
+    }
+    if (countMode == 0) {
+      enableGetSample = 0;
+    }
+    ledIndicator(countMode);
+    // enableGetSample = 1;
+  }
+}
+
+// Function get sample
+void selectGetSample() {
   enableGetSample = 1;
 }
 
@@ -228,7 +278,26 @@ void getSampleSignal() {
     ledStatus(countMode);
     // Get sample excute
     if (countMode == 0) {
-      readData(&redVal, &greenVal, &blueVal);
+      readData(r_rgb_data, g_rgb_data, b_rgb_data);
+      // Serial.print("RR_EEP:");
+      // Serial.print(r_rgb_data[0]);
+      // Serial.print(" RG_EEP:");
+      // Serial.print(r_rgb_data[1]);
+      // Serial.print(" RB_EEP:");
+      // Serial.println(r_rgb_data[2]);
+      // Serial.print("GR_EEP:");
+      // Serial.print(g_rgb_data[0]);
+      // Serial.print(" GG_EEP:");
+      // Serial.print(g_rgb_data[1]);
+      // Serial.print(" GB_EEP:");
+      // Serial.println(g_rgb_data[2]);
+      // Serial.print("BR_EEP:");
+      // Serial.print(b_rgb_data[0]);
+      // Serial.print(" BG_EEP:");
+      // Serial.print(b_rgb_data[1]);
+      // Serial.print(" BB_EEP:");
+      // Serial.println(b_rgb_data[2]);
+      enableGetSample = 0;
     }
     else {
       unsigned char dataSample[4] = {0};
@@ -241,7 +310,7 @@ void getSampleSignal() {
           _greenVal = _greenVal + dataSample[1];
           _blueVal = _blueVal + dataSample[2];
         }
-        delay(10);
+        delay_ms(10);
       }
       // Get sample value for each value of the color
       _redVal = _redVal / 10;
@@ -252,19 +321,36 @@ void getSampleSignal() {
       // Write data to EEPROM
       switch (countMode) {
         case 1: {     // red
+            // EEPROM.write(0, 0);
             EEPROM.write(0, _redVal);
-            Serial.print("R_SAMPLE:");
-            Serial.print(redVal);
+            EEPROM.write(1, _greenVal);
+            EEPROM.write(2, _blueVal);
+            // Serial.print("R_SAMPLE:");
+            // Serial.print(_redVal);
+            // Led status
+            ledStatus(countMode);
           }; break;
         case 2: {     // green
-            EEPROM.write(1, _greenVal);
-            Serial.print(" G_SAMPLE:");
-            Serial.print(greenVal);
+            // EEPROM.write(1, 0);
+            // EEPROM.write(1, _greenVal);
+            EEPROM.write(3, _redVal);
+            EEPROM.write(4, _greenVal);
+            EEPROM.write(5, _blueVal);
+            // Serial.print(" G_SAMPLE:");
+            // Serial.print(_greenVal);
+            // Led status
+            ledStatus(countMode);
           }; break;
         case 3: {     // blue
-            EEPROM.write(2, _blueVal);
-            Serial.print(" B_SAMPLE:");
-            Serial.println(blueVal);
+            // EEPROM.write(0, 0);
+            // EEPROM.write(2, _blueVal);
+            EEPROM.write(6, _redVal);
+            EEPROM.write(7, _greenVal);
+            EEPROM.write(8, _blueVal);
+            // Serial.print(" B_SAMPLE:");
+            // Serial.println(_blueVal);
+            // Led status
+            ledStatus(countMode);
           }; break;
         default: break;
       }
@@ -282,21 +368,21 @@ void loop() {
       rgb.Green = (data[2] << 8) | data[3];
       rgb.Blue = (data[4] << 8) | data[5];
       rgb.Clear = (data[6] << 8) | data[7];
-      Serial.print("Red: ");
-      Serial.print(rgb.Red);
-      Serial.print(",Green: ");
-      Serial.print(rgb.Green);
-      Serial.print(",Blue");
-      Serial.print(rgb.Blue);
-      Serial.print(",Clear");
-      Serial.println(rgb.Clear);
+      // Serial.print("Red: ");
+      // Serial.print(rgb.Red);
+      // Serial.print(",Green: ");
+      // Serial.print(rgb.Green);
+      // Serial.print(",Blue");
+      // Serial.print(rgb.Blue);
+      // Serial.print(",Clear");
+      // Serial.println(rgb.Clear);
       iic_read(0x08, data, 4);
       Lux = (data[0] << 8) | data[1];
       CT = (data[2] << 8) | data[3];
-      Serial.print("CT:");
-      Serial.print(CT);
-      Serial.print(",Lux:");
-      Serial.println( Lux);
+      // Serial.print("CT:");
+      // Serial.print(CT);
+      // Serial.print(",Lux:");
+      // Serial.println( Lux);
     */
     /* Read R,G,B data */
     iic_read(0x0c, data, 3);
@@ -304,27 +390,31 @@ void loop() {
     rgb_data[1] = data[1];  // Green
     rgb_data[2] = data[2];  // Blue
     // Detect Color
-    if (rgb_data[0] > (redVal - 5) && rgb_data[1] < (greenVal + 5) && rgb_data[2] < (blueVal + 5)) {              // Red
+    if (rgb_data[0] > (r_rgb_data[0] - 5) && rgb_data[0] < (r_rgb_data[0] + 5)  \
+        && rgb_data[1] > (r_rgb_data[1] - 5) && rgb_data[1] < (r_rgb_data[1] + 5) \
+        && rgb_data[2] > (r_rgb_data[2] - 5) && rgb_data[2] < (r_rgb_data[2] + 5) ) {              // Red
       // Send to RS232 with result check is fail
       currentColor = 1;
       // dataSend = 'F';
     }
-    else if (rgb_data[0] < (redVal + 5) && rgb_data[1] > (greenVal - 5) && rgb_data[2] < (blueVal + 5)) {         // Green
+    if (rgb_data[0] > (g_rgb_data[0] - 5) && rgb_data[0] < (g_rgb_data[0] + 5)  \
+        && rgb_data[1] > (g_rgb_data[1] - 5) && rgb_data[1] < (g_rgb_data[1] + 5) \
+        && rgb_data[2] > (g_rgb_data[2] - 5) && rgb_data[2] < (g_rgb_data[2] + 5) ) {              // Green
       // Send to RS232 with result check is pass
       currentColor = 2;
       // dataSend = 'T';
     }
-    Serial.print("R:");
-    Serial.print(rgb_data[0]);
-    Serial.print(" G:");
-    Serial.print(rgb_data[1]);
-    Serial.print(" B:");
-    Serial.println(rgb_data[2]);
+    // Serial.print("R:");
+    // Serial.print(rgb_data[0]);
+    // Serial.print(" G:");
+    // Serial.print(rgb_data[1]);
+    // Serial.print(" B:");
+    // Serial.println(rgb_data[2]);
     /* Read color data
       iic_read(0x0f, data, 1);
       color = data[0];
-      Serial.print(",color:");
-      Serial.println( color, HEX);
+      // Serial.print(",color:");
+      // Serial.println( color, HEX);
     */
   }
   if (sign == 1) {
@@ -336,6 +426,11 @@ void loop() {
     i2c_stop();
     sign = 3;
   }
+
+  // Get sample signal
+  getSampleSignal();
+  enableGetSample = 0;
+  // delay(300);
   // delay 200ms
   time_now = millis();
   while (millis() < time_now + 300) {
@@ -364,4 +459,3 @@ void serialEvent() {
     Re_buf = 0;
   }
 }
-

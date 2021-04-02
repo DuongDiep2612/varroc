@@ -397,12 +397,17 @@ void loop() {
       currentColor = 1;
       // dataSend = 'F';
     }
-    if (rgb_data[0] > (g_rgb_data[0] - 5) && rgb_data[0] < (g_rgb_data[0] + 5)  \
+    else if (rgb_data[0] > (g_rgb_data[0] - 5) && rgb_data[0] < (g_rgb_data[0] + 5)  \
         && rgb_data[1] > (g_rgb_data[1] - 5) && rgb_data[1] < (g_rgb_data[1] + 5) \
         && rgb_data[2] > (g_rgb_data[2] - 5) && rgb_data[2] < (g_rgb_data[2] + 5) ) {              // Green
       // Send to RS232 with result check is pass
       currentColor = 2;
       // dataSend = 'T';
+    }
+    else {
+      currentColor = 0;                                                                            // Other
+      lastColor = currentColor;
+      check_ack = 0;
     }
     // Serial.print("R:");
     // Serial.print(rgb_data[0]);
